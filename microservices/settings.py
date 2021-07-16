@@ -93,7 +93,6 @@ DATABASES = {
 #     }
 # }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
 
@@ -125,6 +124,10 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
+
+client_encoding: 'UTF8'
+
+default_transaction_isolation: 'read committed'
 
 
 # Static files (CSS, JavaScript, Images)

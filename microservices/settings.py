@@ -125,9 +125,9 @@ USE_L10N = True
 
 USE_TZ = True
 
-client_encoding: 'UTF8'
+# client_encoding: 'UTF8'
 
-default_transaction_isolation: 'read committed'
+# default_transaction_isolation: 'read committed'
 
 
 # Static files (CSS, JavaScript, Images)

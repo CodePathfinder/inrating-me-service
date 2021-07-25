@@ -5,14 +5,14 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
-	<title>GIFTS</title>
+	<title>TEST</title>
 </head>
 
 <body>
 	<div class="container">
-		<h3>GIFTS</h3>
-		<form method="post" action="{% url 'gifts' %}">
-			{% csrf_token %}
+		<h3>ME</h3>
+		<form method="post" action="{% url 'me' %}">
+			<!-- {% csrf_token %} -->
 			<input type="submit" value="POST" class="btn btn-primary" />
 		</form>
 	</div>

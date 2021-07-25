@@ -27,3 +27,37 @@ class Gifts(models.Model):
 
     def __str__(self):
         return self.name
+
+    """ Serialize method converts object of dict and adjusts key-value pairs """
+
+    def serialize(self):
+        # return {
+        #     "image": self.image2,
+        #     "id": self.id,
+        #     "name": self.name,
+        #     # "image_bg": self.profile_bg_image_id,
+        #     # "extra":null,
+        #     "status": self.status,
+        #     "cost": self.cost,
+        #     "cost_freecoins": self.cost_freecoins,
+        #     # "description":"Valid for 24 hours",
+        #     # "description_2":null,
+        #     "bonus": self.bonus,
+        #     "properties": self.properties,
+        # }
+        return {
+            "id": self.id,
+            "name": self.name,
+            "cost": self.cost,
+            "description": self.description,
+            "image": self.image,
+            "bonus": self.bonus,
+            "properties": self.properties,
+            "status": self.status,
+            "profile_bg_image_id": self.profile_bg_image_id,
+            "cost_freecoins": self.cost_freecoins,
+            "available": self.available,
+            "icon_bg_image_id": self.icon_bg_image_id,
+            "image2": self.image2,
+            "days_to_accept": self.days_to_accept
+        }

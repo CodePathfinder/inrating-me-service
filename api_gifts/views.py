@@ -1,11 +1,13 @@
 from django.shortcuts import HttpResponse, render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 import json
 import base64
 
-from . models import Gifts
+from . models import Users, UserSettings, Gifts
 from . utils import timestamp_token_verification
+from . serializers import me_serialize
 
 
 def index(request):
@@ -83,11 +85,19 @@ def me_info(request):
             if 'sub' in data:
                 id = int(data['sub'])
 
-                # TODO: query to table user and related tables in DB and add 'me' dict
+                # check if user's id is in DB and is unique, get 'me'- related data from DB (users)
+                try:
+                    me = Users.objects.get(id=id)
+                except ObjectDoesNotExist:
+                    pass
+                except MultipleObjectsReturned:
+                    pass
 
-                response_data = {'id': id}
+                # JSON representation of DB data
+                response_data = me_serialize(me)
+                return HttpResponse(
+                    json.dumps(response_data, ensure_ascii=False), content_type="application/json")
 
-                return JsonResponse(response_data)
             else:
                 return JsonResponse(
                     {'Error': "Invalid authorisation token."}, status=400)

@@ -1,10 +1,67 @@
 from django.db import models
+import calendar
+from datetime import datetime
 
-# Create your models here.
+
+class Users(models.Model):
+
+    nickname = models.CharField(unique=True, max_length=255)
+    email = models.CharField(
+        max_length=255, blank=True, null=True)
+    password = models.CharField(max_length=255, blank=True, null=True)
+    phone = models.CharField(
+        max_length=255, blank=True, null=True)
+    name = models.CharField(max_length=255, blank=True, null=True)
+    lastname = models.CharField(max_length=255, blank=True, null=True)
+    gender = models.CharField(max_length=16, blank=True, null=True)
+    birth_date = models.DateField(blank=True, null=True)
+    avatar_image_id = models.IntegerField(blank=True, null=True)
+    avatar_post_id = models.IntegerField(blank=True, null=True)
+    status = models.CharField(max_length=20, default='active')
+    # created_at 'timestamp(0) without time zone NOT NULL DEFAULT now()' in orginal - possible default values: auto_now_add=True or default=timezone.now - from django.utils.timezone.now()
+    created_at = models.DateTimeField()
+    coins = models.IntegerField(blank=True, null=True, default=0)
+    face_api_gender = models.CharField(max_length=16, blank=True, null=True)
+    background_image_id = models.BigIntegerField(blank=True, null=True)
+    freecoins = models.IntegerField(blank=True, null=True)
+    parent_id = models.IntegerField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'users'
+
+    @property
+    def get_dob_timestamp(self):
+        return int(datetime.strptime(str(self.birth_date), '%Y-%m-%d').strftime("%s"))
+
+    # @property
+    # def get_dob_timestamp(self):
+    #     d = self.birth_date
+    #     dt = datetime(d.year, d.month, d.day)
+    #     timetuple = datetime.utctimetuple(dt)
+    #     return calendar.timegm(timetuple)
+
+
+class UserSettings(models.Model):
+
+    user_id = models.IntegerField(primary_key=True)
+    lang = models.CharField(max_length=16, blank=True, null=True)
+    geo_id = models.IntegerField(blank=True, null=True)
+    personal_status = models.CharField(max_length=255, blank=True, null=True)
+    family_status = models.CharField(max_length=16, blank=True, null=True)
+    social_links = models.JSONField(blank=True, null=True)
+    sounds = models.CharField(max_length=16, blank=True, null=True)
+    comments = models.CharField(max_length=10, blank=True, null=True)
+    chat_main_lang = models.CharField(max_length=3, blank=True, null=True)
+    chat_sub_langs = models.JSONField(blank=True, null=True)
+    chat_autotranslate = models.BooleanField(default=False)
+
+    class Meta:
+        managed = False
+        db_table = 'user_settings'
 
 
 class Gifts(models.Model):
-
     id = models.IntegerField(primary_key=True)
     name = models.CharField(max_length=50)
     cost = models.IntegerField()
@@ -31,20 +88,7 @@ class Gifts(models.Model):
     """ Serialize method converts object of dict and adjusts key-value pairs """
 
     def serialize(self):
-        # return {
-        #     "image": self.image2,
-        #     "id": self.id,
-        #     "name": self.name,
-        #     # "image_bg": self.profile_bg_image_id,
-        #     # "extra":null,
-        #     "status": self.status,
-        #     "cost": self.cost,
-        #     "cost_freecoins": self.cost_freecoins,
-        #     # "description":"Valid for 24 hours",
-        #     # "description_2":null,
-        #     "bonus": self.bonus,
-        #     "properties": self.properties,
-        # }
+
         return {
             "id": self.id,
             "name": self.name,

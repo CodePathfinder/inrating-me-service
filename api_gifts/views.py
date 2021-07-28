@@ -1,7 +1,7 @@
 from django.shortcuts import HttpResponse, render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.core.exceptions import MultipleObjectsReturned
 import json
 import base64
 
@@ -11,29 +11,7 @@ from . serializers import me_serialize
 
 
 def index(request):
-    return render(request, 'api_gifts/index.html')
-
-
-@csrf_exempt
-def gifts(request):
-    """ in response to url request: v1/gifts/available/, gets lists of objects with different status field
-        and returns JSON in required pattern {"FREE":[], "GOLD":[], "PLATINUM":[], "Premium":[], "VIP:[]"} """
-
-    if request.method == 'POST':
-
-        gifts = Gifts.objects.filter(available=True).order_by('id')
-        # print(len(gifts))
-        response_data = {}
-        STATUSLIST = ['FREE', 'GOLD', 'PLATINUM', 'Premium', 'VIP']
-
-        for status in STATUSLIST:
-            response_data[status] = [
-                gift.serialize() for gift in gifts.filter(status__icontains=status)
-            ]
-
-        return HttpResponse(json.dumps(response_data, ensure_ascii=False), content_type="application/json")
-
-    return JsonResponse({'Error': 'POST request required.'}, status=400)
+    return HttpResponse('<h2>WELCOME TO API SERVICES!</h2>')
 
 
 @csrf_exempt
@@ -55,7 +33,7 @@ def me_info(request):
                 return JsonResponse(
                     {'Error': "Invalid token format."}, status=400)
 
-            # decode payload data(b64decode), convert binary into string(decode), and convert JSON string to dictionary(json.loads)
+            # decode payload data(b64decode) and convert JSON string to dictionary(json.loads)
             try:
                 data = json.loads(base64.b64decode(token_data + '=='))
 
@@ -88,8 +66,8 @@ def me_info(request):
                 # check if user's id is in DB and is unique, get 'me'- related data from DB (users)
                 try:
                     me = Users.objects.get(id=id)
-                except ObjectDoesNotExist:
-                    pass
+                except Users.DoesNotExist:
+                    return HttpResponse(status=404)
                 except MultipleObjectsReturned:
                     pass
 
@@ -107,3 +85,25 @@ def me_info(request):
 
     else:
         return JsonResponse({'Error': 'POST request required.'}, status=400)
+
+
+@csrf_exempt
+def gifts(request):
+    """ in response to url request: v1/gifts/available/, gets lists of objects with different status field
+        and returns JSON in required pattern {"FREE":[], "GOLD":[], "PLATINUM":[], "Premium":[], "VIP:[]"} """
+
+    if request.method == 'POST':
+
+        gifts = Gifts.objects.filter(available=True).order_by('id')
+        # print(len(gifts))
+        response_data = {}
+        STATUSLIST = ['FREE', 'GOLD', 'PLATINUM', 'Premium', 'VIP']
+
+        for status in STATUSLIST:
+            response_data[status] = [
+                gift.serialize() for gift in gifts.filter(status__icontains=status)
+            ]
+
+        return HttpResponse(json.dumps(response_data, ensure_ascii=False), content_type="application/json")
+
+    return JsonResponse({'Error': 'POST request required.'}, status=400)

@@ -56,6 +56,9 @@ def me_info(request):
                 # todo play with select_related() and prefetch_related() methods to improve productivity
                 try:
                     me = Users.objects.get(id=id)
+                    # print()
+                    # print(request.LANGUAGE_CODE)
+                    # print()
 
                 except Users.DoesNotExist:
                     return Response(status=status.HTTP_404_NOT_FOUND)

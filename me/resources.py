@@ -1,9 +1,11 @@
-from .models import Images, Places, UserPrivacySettings, CommercialButtons, ChinChins, ReportedPosts, PostViews
-from . import const
-from .serializers import ImagesSerializer
-from django.core.cache import cache
 from datetime import datetime, date, timedelta
 from django.db.models import Sum, Q
+from django.core.cache import cache
+from django.utils.translation import ugettext as _
+
+from .models import Images, Places, UserPrivacySettings, CommercialButtons, ChinChins, ReportedPosts, PostViews, GiftUser, Gifts
+from .serializers import ImagesSerializer
+from . import const
 
 
 def get_response_data(user):
@@ -22,7 +24,7 @@ def get_response_data(user):
     main_resource = {
         "id": user.id,
         "nickname": user.nickname,
-        # "active_gift": active_gift(user),
+        "active_gift": get_gift_resource(user),
         "avatar_image": avatar_image,
         "is_commercial": is_commercial,
         "off_page": user.id == const.inratingAccountID,
@@ -38,7 +40,7 @@ def get_response_data(user):
         # #     "proportion": 0.0141
         # # },
         "comments": user_settings.comments if user_settings.comments else "all",
-        "geo_id": get_place_resource(user_settings) if user_settings and user_settings.geo_id else 'null',
+        "geo_id": get_place_resource(user_settings) if user_settings and user_settings.geo_id else None,
         "contest_entry_instance": get_contest_resource(user),
         "chat_main_lang": user_settings.chat_main_lang if user_settings.chat_main_lang else 'ru',
         "is_voted": is_voted(user),
@@ -47,8 +49,7 @@ def get_response_data(user):
         "phone": user.phone,
         "active_ads_count": active_ads_count if active_ads_count else 0,
         "gender": user.gender,
-
-        "background_image": user.background_image_id,
+        "background_image": get_background_image_resource(user),
         "birth_date": str(user.birth_date) if user.birth_date else user.birth_date,
         "birth_date_timestamp": get_dob_timestamp(user) if user.birth_date else user.birth_date,
         "typed_rating": get_typed_rating(user),
@@ -65,7 +66,7 @@ def get_response_data(user):
         # todo id or pk is requered to be added to the model
         # "activity_statuses": [{status.id, status.item} for status in user.fieldofactivitybindings_set.all()],
         # # "offers_count": 0,
-        # todo check if 'user.id = author_id' creterium should apply
+        # todo check if 'user.id = author_id' criterium should apply
         "posts_count": user.posts_set.filter(type=const.postTypes['user-post'], deleted_at__isnull=True).count(),
         "subscriptions_count": follow(user),
         "subscribers_count": followers(user),
@@ -88,9 +89,9 @@ def get_response_data(user):
             "ios": tutorial.ios
         },
         "subscribe_requests_count": subscribe_requests(user),
-        # # "gift_bg_available": false,
+        "gift_bg_available": gift_bg_available(user),
         "location": get_location(additional_info),
-        # # "temp_status": null,
+        # # "temp_status": None,
         "privacy_settings": get_user_privacy_settings_resource(user)
     }
     # merge commercial info (dict) with main_resource (dict)
@@ -164,7 +165,7 @@ def get_place_resource(user_settings):
         }
         return place_resource
     except Places.DoesNotExist:
-        return 'null'
+        return None
 
 
 def get_contest_resource(user):
@@ -209,19 +210,19 @@ def get_commercial_button_resource(user):
         type = user.commercialbuttons.type
         value = user.commercialbuttons.value
         return {
-            "type": type if type else 'null',
-            "value": value if value else 'null'
+            "type": type if type else None,
+            "value": value if value else None
         }
     except CommercialButtons.DoesNotExist:
-        return 'null'
+        return None
 
 
 def get_commercial_info(user):
 
     return {
-        "site": user.commercialinfo.site if user.commercialinfo.site else 'null',
-        "desc": user.commercialinfo.desc if user.commercialinfo.desc else 'null',
-        "categories": get_categories(user) if get_categories(user) else 'null',
+        "site": user.commercialinfo.site if user.commercialinfo.site else None,
+        "desc": user.commercialinfo.desc if user.commercialinfo.desc else None,
+        "categories": get_categories(user) if get_categories(user) else None,
         "button": get_commercial_button_resource(user),
     }
 
@@ -391,31 +392,72 @@ def get_location(additional_info):
             'lng': additional_info.lng
         }
     else:
-        return 'null'
+        return None
 
 
 def get_dob_timestamp(user):
     return int(datetime.strptime(str(user.birth_date), '%Y-%m-%d').strftime("%s"))
 
 
-# TODO
 def active_gift(user):
 
     key = f'active-gift-.{user.id}'
-
-    if cache.get(key):
-        gift_attr = cache.get(key)
-    else:
-        gift_attr = True
+    gift_attr = cache.get(key)
 
     if gift_attr:
-        # activegift = Gifts.objects.create()
-        # activegift.id = gift_attr['id']
-        # activegift.name = gift_attr['name']
-        # activegift.image = gift_attr['image']
-        # activegift.save()
-        activegift = True
+        activegift = Gifts.objects.create()
+        activegift.id = gift_attr['id']
+        activegift.name = gift_attr['name']
+        activegift.image = gift_attr['image']
     else:
         activegift = None
-
     return activegift
+
+
+def get_gift_resource(user):
+    gift = active_gift(user)
+    if not gift:
+        return None
+    else:
+        return {
+            "id": gift.id,
+            "name": _(gift.name),
+            # "name" => __( 'gifts.gift_title_' . $this->id ), Localization
+            "image": gift.image2 if gift.image2 else gift.image,
+        }
+
+
+def get_background_image_resource(user, is_bg_set_by_gift=False):
+
+    try:
+        active_gift_instance = user.giftuser_set.filter(
+            accepted_at__isnull=False, expire_at__gte=datetime.now()).order_by('accepted_at').first()
+    except GiftUser.DoesNotExist:
+        return None
+    else:
+        gift_user = active_gift_instance
+        if gift_user and gift_user.bg_enabled:
+            image = gift_user.gift.profile_bg_image
+        else:
+            image = user.background_image
+        if not image:
+            return None
+        else:
+            return {
+                'image_id': image.id,
+                'bg_origin': image.url,
+                'bg_video': image.url_origin,
+                'bg_mobile': image.url_medium if image.url_medium else image.url,
+                'bg_desk': image.url_large if image.url_large else image.url,
+                'bg_static': image.url_small if image.url_small else image.url,
+                'is_custom_bg': not is_bg_set_by_gift,
+            }
+
+
+def gift_bg_available(user):
+
+    gift = active_gift(user)
+    if not gift:
+        return None
+    else:
+        return gift.profile_bg_image

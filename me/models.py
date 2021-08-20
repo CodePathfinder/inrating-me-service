@@ -1,8 +1,4 @@
 from django.db import models
-from datetime import datetime
-from django.core.cache import cache
-from .const import *
-import json
 
 
 class Users(models.Model):
@@ -24,7 +20,8 @@ class Users(models.Model):
     created_at = models.DateTimeField()
     coins = models.IntegerField(blank=True, null=True, default=0)
     face_api_gender = models.CharField(max_length=16, blank=True, null=True)
-    background_image_id = models.BigIntegerField(blank=True, null=True)
+    background_image = models.OneToOneField(
+        'Images', on_delete=models.SET_NULL, related_name='bg_image', blank=True, null=True)
     freecoins = models.IntegerField(blank=True, null=True)
     parent_id = models.IntegerField(blank=True, null=True)
 
@@ -268,7 +265,8 @@ class Gifts(models.Model):
     bonus = models.TextField()
     properties = models.JSONField(default=dict, null=True, blank=True)
     status = models.CharField(max_length=255, null=True, blank=True)
-    profile_bg_image_id = models.BigIntegerField(null=True, blank=True)
+    profile_bg_image = models.OneToOneField(
+        'Images', on_delete=models.SET_NULL, blank=True, null=True)
     cost_freecoins = models.IntegerField(null=True, blank=True)
     available = models.BooleanField(default=True)
     icon_bg_image_id = models.CharField(max_length=191, null=True, blank=True)
@@ -580,4 +578,3 @@ class UserTutorial(models.Model):
     class Meta:
         managed = False
         db_table = 'user_tutorial'
-

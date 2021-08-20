@@ -162,4 +162,7 @@ Thumbs.db
 # PyCharm stuff
 .idea/
 
+# Redis stuff
+dump.rdb
+
 # End of https://www.toptal.com/developers/gitignore/api/django

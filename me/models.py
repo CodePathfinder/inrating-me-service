@@ -30,29 +30,13 @@ class Users(models.Model):
         db_table = 'users'
 
 
-class AdFilters(models.Model):
-
-    user = models.ForeignKey(Users, on_delete=models.CASCADE)
-    locs = models.TextField(blank=True, null=True)
-    age = models.TextField(blank=True, null=True)
-    gender = models.CharField(max_length=191, blank=True, null=True)
-    social_statuses = models.TextField(blank=True, null=True)
-    activity_statuses = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'ad_filters'
-
-
 class Ads(models.Model):
     user = models.ForeignKey(Users, on_delete=models.DO_NOTHING)
     post = models.ForeignKey('Posts', on_delete=models.DO_NOTHING)
     result = models.CharField(max_length=191)
     link = models.CharField(max_length=191, blank=True, null=True)
     targeting_type = models.CharField(max_length=191)
-    filter = models.ForeignKey(AdFilters, on_delete=models.CASCADE)
+    # filter = models.ForeignKey(AdFilters, on_delete=models.CASCADE)
     price = models.FloatField()
     day_actions = models.IntegerField()
     day_budget = models.IntegerField()
@@ -282,30 +266,6 @@ class Gifts(models.Model):
         return self.name
 
 
-class Groups(models.Model):
-
-    name = models.CharField(max_length=100)
-    type = models.CharField(max_length=10)
-    subject = models.SmallIntegerField(blank=True, null=True)
-    description = models.CharField(max_length=5000)
-    slug = models.CharField(max_length=100)
-    accessibility = models.CharField(max_length=10)
-    logo = models.IntegerField(blank=True, null=True)
-    banner = models.IntegerField(blank=True, null=True)
-    website = models.CharField(max_length=150, blank=True, null=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
-    geo_id = models.IntegerField(blank=True, null=True)
-    created_at = models.DateTimeField()
-    updated_at = models.DateTimeField()
-    deleted_at = models.DateTimeField(blank=True, null=True)
-    fee = models.SmallIntegerField(blank=True, null=True)
-    coins = models.IntegerField(default=0)
-
-    class Meta:
-        managed = False
-        db_table = 'groups'
-
-
 class Images(models.Model):
 
     author_id = models.IntegerField(blank=True, null=True)
@@ -319,8 +279,8 @@ class Images(models.Model):
     url_medium_origin = models.CharField(max_length=255, blank=True, null=True)
     url_small_origin = models.CharField(max_length=255, blank=True, null=True)
     tag = models.CharField(max_length=64, blank=True, null=True)
-    group = models.ForeignKey(
-        Groups, on_delete=models.CASCADE, blank=True, null=True)
+    # group = models.ForeignKey(
+    #     Groups, on_delete=models.CASCADE, blank=True, null=True)
     url_shape_cropped_round = models.CharField(
         max_length=255, blank=True, null=True)
     url_shape_cropped_star = models.CharField(
@@ -331,19 +291,6 @@ class Images(models.Model):
     class Meta:
         managed = False
         db_table = 'images'
-
-
-class PlacePost(models.Model):
-
-    place_id = models.IntegerField()
-    item_id = models.IntegerField()
-    item_type = models.CharField(max_length=16)
-    coords = models.JSONField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'place_post'
-        unique_together = (('item_type', 'item_id'),)
 
 
 class Mentions(models.Model):
@@ -383,7 +330,7 @@ class Places(models.Model):
 
 class PostViews(models.Model):
 
-    post_id = models.IntegerField()
+    post_id = models.ForeignKey(Users, on_delete=models.CASCADE)
     user_id = models.IntegerField()
     created_at = models.DateTimeField()
 
@@ -482,7 +429,7 @@ class StoryPosts(models.Model):
 class TempStatuses(models.Model):
 
     user = models.OneToOneField(
-        Users, on_delete=models.CASCADE)
+        Users, on_delete=models.CASCADE, blank=True, null=True)
     temp_status_id = models.IntegerField()
     expire_at = models.DateTimeField()
     reset_status_id = models.IntegerField()

@@ -2,8 +2,9 @@ from datetime import datetime, date, timedelta
 from django.db.models import Sum, Q
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
+from math import sqrt
 
-from .models import Images, Places, UserPrivacySettings, CommercialButtons, ChinChins, ReportedPosts, PostViews, GiftUser, Gifts
+from .models import Images, Places, UserPrivacySettings, CommercialButtons, ChinChins, ReportedPosts, GiftUser, Gifts, TempStatuses, FieldOfActivityDictionary, SocialStatusDictionary
 from .serializers import ImagesSerializer
 from . import const
 
@@ -31,14 +32,9 @@ def get_response_data(user):
         "name": user.name if user.name else user.nickname,
         "lastname": user.lastname if user.lastname else "",
         "status": user.status,
-        # "is_subscribed": false,
+        "is_subscribed": is_subscribed(user),
         # "is_online": false,
-        # # "rating": {
-        # #     "level": 1,
-        # #     "value": 1,
-        # #     "caption": 1,
-        # #     "proportion": 0.0141
-        # # },
+        "rating": get_rating(user),
         "comments": user_settings.comments if user_settings.comments else "all",
         "geo_id": get_place_resource(user_settings) if user_settings and user_settings.geo_id else None,
         "contest_entry_instance": get_contest_resource(user),
@@ -51,7 +47,7 @@ def get_response_data(user):
         "gender": user.gender,
         "background_image": get_background_image_resource(user),
         "birth_date": str(user.birth_date) if user.birth_date else user.birth_date,
-        "birth_date_timestamp": get_dob_timestamp(user) if user.birth_date else user.birth_date,
+        "birth_date_timestamp": get_timestamp_from_date(user.birth_date) if user.birth_date else user.birth_date,
         "typed_rating": get_typed_rating(user),
         "personal_status": user_settings.personal_status,
         "family_status": user_settings.family_status,
@@ -61,12 +57,9 @@ def get_response_data(user):
         "is_chined": is_chin_chined(user),
         "is_active_story": True if is_active_story(user) else False,
         "is_story_seen": is_story_seen(user) == is_active_story(user),
-        # todo id or pk is requered to be added to the model
-        # "social_statuses": [{status.id, status.item} for status in user.socialstatusbindings_set.all()],
-        # todo id or pk is requered to be added to the model
-        # "activity_statuses": [{status.id, status.item} for status in user.fieldofactivitybindings_set.all()],
+        "social_statuses": get_social_statuses(user),
+        "activity_statuses": get_activity_statuses(user),
         # # "offers_count": 0,
-        # todo check if 'user.id = author_id' criterium should apply
         "posts_count": user.posts_set.filter(type=const.postTypes['user-post'], deleted_at__isnull=True).count(),
         "subscriptions_count": follow(user),
         "subscribers_count": followers(user),
@@ -91,7 +84,7 @@ def get_response_data(user):
         "subscribe_requests_count": subscribe_requests(user),
         "gift_bg_available": gift_bg_available(user),
         "location": get_location(additional_info),
-        # # "temp_status": None,
+        "temp_status": get_temp_status_resourse(user),
         "privacy_settings": get_user_privacy_settings_resource(user)
     }
     # merge commercial info (dict) with main_resource (dict)
@@ -115,9 +108,18 @@ def get_avatar_image_resource(user):
         else:
             serializer = ImagesSerializer(avtr_image)
             avatar_image = serializer.data
+            # avatar_image['mentioned_users_count'] = mentioned_users(user)
             cache.set(key, avatar_image)
 
     return avatar_image
+
+# TODO
+# def mentioned_users(user):
+#     try:
+#         mentioned_users =
+#         return mentioned_users.count()
+#     except Object.DoesNotExist:
+#         return 0
 
 
 def get_user_privacy_settings_resource(user):
@@ -234,9 +236,7 @@ def get_typed_rating(user):
         rating = cache.get(key)
     else:
         rating = typed_rating(user)
-        tmrw = date.today() + timedelta(days=1)
-        timeout = (datetime(tmrw.year, tmrw.month, tmrw.day) -
-                   datetime.now()).total_seconds()
+        timeout = (tomorrow() - datetime.now()).total_seconds()
         cache.set(key, rating, int(timeout))
     return rating
 
@@ -251,8 +251,9 @@ def typed_rating(user):
     start_of_month = datetime(t.year, t.month, day=1)
 
     # get user's day rating
-    day_query = user.rating_set.filter(deleted_at__isnull=True, created_at__gte=today,
-                                       created_at__lte=datetime.now()).values('user_id').annotate(rating_day=Sum('rating'))
+    day_query = user.rating_set.filter(deleted_at__isnull=True, created_at__range=(
+        today, datetime.now())).values('user_id').annotate(rating_day=Sum('rating'))
+
     if day_query:
         rating_day = int(day_query[0]['rating_day'])
     else:
@@ -284,14 +285,14 @@ def typed_rating(user):
     }
 
 
-def get_caption(number):
+def get_caption(value):
     """ Wraps big numbers in short format """
-    if number >= 1000000:
-        return '{0:.1f}m'.format(number/1000000),
-    elif number >= 1000:
-        return '{0:.1f}k'.format(number/1000),
+    if value >= 1000000:
+        return '{0:.1f}m'.format(value/1000000),
+    elif value >= 1000:
+        return '{0:.1f}k'.format(value/1000),
     else:
-        return number
+        return value
 
 
 def active_contest_entries(user):
@@ -314,9 +315,7 @@ def is_chin_chined(user):
             timeout = (chin.created_at + timedelta(hours=1)).total_seconds()
         else:
             is_chined = False
-            tomorrow = date.today() + timedelta(days=1)
-            timeout = (datetime(tomorrow.year, tomorrow.month, tomorrow.day) -
-                       datetime.now()).total_seconds()
+            timeout = (tomorrow() - datetime.now()).total_seconds()
         cache.set(key, is_chined, int(timeout))
     return is_chined
 
@@ -346,8 +345,8 @@ def is_story_seen(user):
 
     query = user.storyposts_set.filter(created_at__range=(datetime.now(), datetime.now(
     )-timedelta(days=1))).filter(post__deleted_at__isnull=True).values('post_id')
-    story_post_seen = PostViews.objects.filter(
-        post_id__in=[q['post_id'] for q in query], user_id=user.id).count()
+    story_post_seen = user.postviews_set.filter(
+        post_id__in=[q['post_id'] for q in query]).count()
 
     return story_post_seen
 
@@ -360,6 +359,11 @@ def follow(user):
     return i_follow.count()
 
 
+def is_subscribed(user):
+
+    return user.first.filter(first_id=user.id, second_id=user.id, accepted_at__isnull=False).exists()
+
+
 def followers(user):
 
     follow_me = user.friends_set.filter(
@@ -368,20 +372,20 @@ def followers(user):
     return follow_me.count()
 
 
-def bookmarked_posts(user):
-    return user.bookmarks_set.filter(deleted_at__isnull=True).order_by('-updated_at').count()
-
-
-def mentioned_images(user):
-    return user.mentions_set.all().count()
-
-
 def subscribe_requests(user):
 
     sub_requests = user.friends_set.filter(
         deleted_at__isnull=True, accepted_at__isnull=True, first__status__istartswith='active').order_by('-created_at')
 
     return sub_requests.count()
+
+
+def bookmarked_posts(user):
+    return user.bookmarks_set.filter(deleted_at__isnull=True).order_by('-updated_at').count()
+
+
+def mentioned_images(user):
+    return user.mentions_set.all().count()
 
 
 def get_location(additional_info):
@@ -395,8 +399,8 @@ def get_location(additional_info):
         return None
 
 
-def get_dob_timestamp(user):
-    return int(datetime.strptime(str(user.birth_date), '%Y-%m-%d').strftime("%s"))
+def get_timestamp_from_date(dateobj):
+    return int(datetime.strptime(str(dateobj), '%Y-%m-%d').strftime("%s"))
 
 
 def active_gift(user):
@@ -461,3 +465,93 @@ def gift_bg_available(user):
         return None
     else:
         return gift.profile_bg_image
+
+
+def get_temp_status_resourse(user):
+
+    try:
+        temp_status = user.tempstatuses
+    except TempStatuses.DoesNotExist:
+        return None
+    else:
+        if temp_status.already_reset:
+            return None
+        else:
+            return {
+                'id': temp_status.id,
+                'user_id': temp_status.user_id,
+                'expire_at_ts': temp_status.expire_at.strftime("%s"),
+                'temp_status_id': temp_status.temp_status_id,
+                'reset_status_id': temp_status.reset_status_id,
+                'created_at_ts': temp_status.created_at.strftime("%s"),
+            }
+
+
+def get_social_statuses(user):
+
+    social_statuses = SocialStatusDictionary.objects.filter(
+        socialstatusbindings__entity_id=user.id).values('id', 'name')
+
+    return list(social_statuses)
+
+
+def get_activity_statuses(user):
+
+    activity_statuses = FieldOfActivityDictionary.objects.filter(
+        fieldofactivitybindings__entity_id=user.id).values('id', 'name')
+
+    return list(activity_statuses)
+
+
+def get_rating(user):
+
+    rating = get_tabled_rating_sum(user)
+    return get_rating_details(rating)
+
+
+def get_rating_details(current_rating):
+
+    # level = get_user_level(current_rating)
+    # if level > 3:
+    #     level = 3
+    # if current_rating > 0:
+    #     # TODO: clarify what is 'self::levels' and 'self::ratingCoefficients'
+    #     percent = sqrt(current_rating - ((self: : levels[level - 1]) if level > 1 else 0)) * self: : ratingCoefficients[level]
+    # else:
+    #     percent = 0
+    # percent = percent / 100
+    return {
+        # 'level': level,
+        'value': int(current_rating),
+        'caption': get_caption(current_rating),
+        # 'proportion': round(percent, 4)
+    }
+
+
+def get_user_level(current_rating):
+    level = 4
+    # TODO: clarify what is 'self::levels'
+    for lev in levels:
+        if int(current_rating/lev['levelrating']) <= 1:
+            level = lev['level']
+            break
+    return level
+
+
+def get_tabled_rating_sum(user):
+
+    key = f'rating.{user.id}'
+    if cache.has_key(key):
+        rating = cache.get(key)
+    else:
+        tabled_rating = user.rating_set.filter(
+            created_at__lte=datetime.now()).aggregate(Sum('rating'))
+        rating = int(tabled_rating['rating__sum'])
+        timeout = (tomorrow() - datetime.now()).total_seconds()
+        cache.set(key, rating, int(timeout))
+    return rating
+
+
+def tomorrow():
+    tomorrow = date.today() + timedelta(days=1)
+    return datetime(tomorrow.year, tomorrow.month, tomorrow.day)

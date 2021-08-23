@@ -17,6 +17,8 @@ def get_response_data(user):
     avatar_image = get_avatar_image_resource(user)
     is_commercial = user.parent_id != None
     active_ads_count = user.ads_set.filter(active=True).count()
+    is_active_story = get_is_active_story(user)
+    contest_resource = get_contest_resource(user)
 
     """ uncomment to see all cached keys """
     # for k in cache.keys('*'):
@@ -37,7 +39,7 @@ def get_response_data(user):
         "rating": get_rating(user),
         "comments": user_settings.comments if user_settings.comments else "all",
         "geo_id": get_place_resource(user_settings) if user_settings and user_settings.geo_id else None,
-        "contest_entry_instance": get_contest_resource(user),
+        "contest_entry_instance": contest_resource,
         "chat_main_lang": user_settings.chat_main_lang if user_settings.chat_main_lang else 'ru',
         "is_voted": is_voted(user),
         "is_commercial": is_commercial,
@@ -52,11 +54,10 @@ def get_response_data(user):
         "personal_status": user_settings.personal_status,
         "family_status": user_settings.family_status,
         "social_links": user_settings.social_links if user_settings.social_links else [],
-        "contest_entry": active_contest_entries(user),
-        "is_verified": additional_info.phone_verified if additional_info.phone_verified else False,
+        "contest_entry": contest_resource['slug'] if contest_resource else None,
         "is_chined": is_chin_chined(user),
-        "is_active_story": True if is_active_story(user) else False,
-        "is_story_seen": is_story_seen(user) == is_active_story(user),
+        "is_active_story": True if is_active_story else False,
+        "is_story_seen": is_story_seen(user) == is_active_story,
         "social_statuses": get_social_statuses(user),
         "activity_statuses": get_activity_statuses(user),
         # # "offers_count": 0,
@@ -184,7 +185,7 @@ def get_contest_resource(user):
         }
         return contest_short_resource
     else:
-        return contest_user
+        return None
 
 
 def is_voted(user):
@@ -295,13 +296,6 @@ def get_caption(value):
         return value
 
 
-def active_contest_entries(user):
-    contest_entries = user.contestsusers_set.filter(
-        status='participant', deleted_at__isnull=True).order_by('-id').filter(contest__end_date__gte=datetime.now(), contest__start_date__lte=datetime.now())
-    contest_entry = contest_entries.first()
-    return contest_entry.contest.slug if contest_entry else contest_entry
-
-
 def is_chin_chined(user):
 
     key = f'user-.{user.id}.-chined-by-.{user.id}'
@@ -320,7 +314,7 @@ def is_chin_chined(user):
     return is_chined
 
 
-def is_active_story(user, only_active=True, hide_reported=True):
+def get_is_active_story(user, only_active=True, hide_reported=True):
 
     model = user.storyposts_set.filter(created_at__lte=datetime.now())
 

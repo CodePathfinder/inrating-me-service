@@ -53,9 +53,9 @@ def me_info(request):
                 id = int(data['sub'])
 
                 # check if user's id is in DB and is unique, get 'me'- related data from DB (users)
-                # todo play with select_related() and prefetch_related() methods to improve productivity
                 try:
-                    me = Users.objects.get(id=id)
+                    me = Users.objects.select_related(
+                        'avatar_image', 'background_image', 'commercialbuttons', 'commercialinfo', 'tempstatuses', 'useradditionalinfo', 'userprivacysettings', 'usersettings', 'usertutorial').get(id=id)
 
                 except Users.DoesNotExist:
                     return Response(status=status.HTTP_404_NOT_FOUND)

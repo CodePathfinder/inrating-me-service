@@ -3,10 +3,25 @@ from django.db.models import Sum, Q
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 from math import sqrt
+import requests
+from microservices.settings import GOOGLE_PLACES_API_KEY, GOOGLE_API_PLACE_DETAILS_URL
 
-from .models import Images, Places, UserPrivacySettings, CommercialButtons, ChinChins, ReportedPosts, GiftUser, Gifts, TempStatuses, FieldOfActivityDictionary, SocialStatusDictionary
+from .models import Images, Places, UserPrivacySettings, CommercialButtons, ChinChins, ReportedPosts, GiftUser, Gifts, TempStatuses, FieldOfActivityDictionary, SocialStatusDictionary, Offers
 from .serializers import ImagesSerializer
 from . import const
+
+
+# def print_result_decorator(func):
+#     def print_action(*args, **kwargs):
+#         start = datetime.now()
+#         result = func(*args, **kwargs)
+#         end = datetime.now()
+#         print()
+#         print(f'Function "{func.__name__}" returns: {result}')
+#         print(f'Performance time = ', end - start)
+#         print()
+#         return result
+#     return print_action
 
 
 def get_response_data(user):
@@ -18,7 +33,7 @@ def get_response_data(user):
     is_commercial = user.parent_id != None
     active_ads_count = user.ads_set.filter(active=True).count()
 
-    """ uncomment to see all cached keys """
+    # uncomment to see all cached keys
     # for k in cache.keys('*'):
     #     print(k)
 
@@ -33,7 +48,7 @@ def get_response_data(user):
         "lastname": user.lastname if user.lastname else "",
         "status": user.status,
         "is_subscribed": is_subscribed(user),
-        # "is_online": false,
+        "is_online": is_online(user),
         "rating": get_rating(user),
         "comments": user_settings.comments if user_settings.comments else "all",
         "geo_id": get_place_resource(user_settings) if user_settings and user_settings.geo_id else None,
@@ -59,7 +74,7 @@ def get_response_data(user):
         "is_story_seen": is_story_seen(user) == is_active_story(user),
         "social_statuses": get_social_statuses(user),
         "activity_statuses": get_activity_statuses(user),
-        # # "offers_count": 0,
+        "offers_count": count_offers(user) if is_commercial else 0,
         "posts_count": user.posts_set.filter(type=const.postTypes['user-post'], deleted_at__isnull=True).count(),
         "subscriptions_count": follow(user),
         "subscribers_count": followers(user),
@@ -108,18 +123,20 @@ def get_avatar_image_resource(user):
         else:
             serializer = ImagesSerializer(avtr_image)
             avatar_image = serializer.data
-            # avatar_image['mentioned_users_count'] = mentioned_users(user)
+            if not avatar_image['url_origin']:
+                avatar_image['url_origin'] = avatar_image['url']
+                avatar_image['url_small_origin'] = avatar_image['url']
+                avatar_image['url_medium_origin'] = avatar_image['url']
+                avatar_image['url_large_origin'] = avatar_image['url']
+            avatar_image['mentioned_users_count'] = mentioned_users(avtr_image)
             cache.set(key, avatar_image)
 
     return avatar_image
 
-# TODO
-# def mentioned_users(user):
-#     try:
-#         mentioned_users =
-#         return mentioned_users.count()
-#     except Object.DoesNotExist:
-#         return 0
+
+def mentioned_users(image):
+    mentioned_users = image.mentions_set.filter(deleted_at__isnull=True)
+    return mentioned_users.count() if mentioned_users else 0
 
 
 def get_user_privacy_settings_resource(user):
@@ -137,7 +154,7 @@ def get_user_privacy_settings_resource(user):
 
 
 def get_location_place_resource(lang, place):
-    """ get location colomn (uk, ru, or en) depending on user's main language """
+    # get location colomn (uk, ru, or en) depending on user's main language
 
     if lang == const.locationLanguages['uk']:
         location = place.uk
@@ -163,7 +180,7 @@ def get_place_resource(user_settings):
             "country": place.country,
             "administrative_area_level_1": place.administrative_area_level_1,
             "administrative_area_level_2": place.administrative_area_level_2,
-            # "address_components": [?]
+            "address_components": get_address_components(place.google_place_id, user_settings.lang)
         }
         return place_resource
     except Places.DoesNotExist:
@@ -230,7 +247,7 @@ def get_commercial_info(user):
 
 
 def get_typed_rating(user):
-    """ Get user's rating data from cache, if not available - retrieve from DB """
+    # get user's rating data from cache, if not available - retrieve from DB
     key = f'typed-rating-.{user.id}'
     if cache.has_key(key):
         rating = cache.get(key)
@@ -242,7 +259,8 @@ def get_typed_rating(user):
 
 
 def typed_rating(user):
-    """ Retrive user's rating data from DB """
+    # Retrive user's rating data from DB
+
     # configuration of timepoints
     t = date.today()
     w = t - timedelta(days=t.isoweekday())
@@ -286,11 +304,11 @@ def typed_rating(user):
 
 
 def get_caption(value):
-    """ Wraps big numbers in short format """
+    # wraps big numbers in shorter format
     if value >= 1000000:
-        return '{0:.1f}m'.format(value/1000000),
+        return '{0:.1f}m'.format(value/1000000)
     elif value >= 1000:
-        return '{0:.1f}k'.format(value/1000),
+        return '{0:.1f}k'.format(value/1000)
     else:
         return value
 
@@ -425,8 +443,7 @@ def get_gift_resource(user):
     else:
         return {
             "id": gift.id,
-            "name": _(gift.name),
-            # "name" => __( 'gifts.gift_title_' . $this->id ), Localization
+            "name": gift.name,
             "image": gift.image2 if gift.image2 else gift.image,
         }
 
@@ -511,30 +528,30 @@ def get_rating(user):
 
 def get_rating_details(current_rating):
 
-    # level = get_user_level(current_rating)
-    # if level > 3:
-    #     level = 3
-    # if current_rating > 0:
-    #     # TODO: clarify what is 'self::levels' and 'self::ratingCoefficients'
-    #     percent = sqrt(current_rating - ((self: : levels[level - 1]) if level > 1 else 0)) * self: : ratingCoefficients[level]
-    # else:
-    #     percent = 0
-    # percent = percent / 100
+    level = get_user_level(current_rating)
+    if level > 3:
+        level = 3
+    if current_rating > 0:
+        percent = sqrt(current_rating - ((const.levels[level - 1])
+                                         if level > 1 else 0)) * const.ratingCoefficients[level]
+    else:
+        percent = 0
+    percent = percent / 100
+
     return {
-        # 'level': level,
+        'level': level,
         'value': int(current_rating),
         'caption': get_caption(current_rating),
-        # 'proportion': round(percent, 4)
+        'proportion': round(percent, 4)
     }
 
 
 def get_user_level(current_rating):
     level = 4
-    # TODO: clarify what is 'self::levels'
-    for lev in levels:
-        if int(current_rating/lev['levelrating']) <= 1:
-            level = lev['level']
-            break
+    for lvl, levelrating in const.levels.items():
+        if int(current_rating/levelrating) <= 1:
+            level = lvl
+            return level
     return level
 
 
@@ -555,3 +572,47 @@ def get_tabled_rating_sum(user):
 def tomorrow():
     tomorrow = date.today() + timedelta(days=1)
     return datetime(tomorrow.year, tomorrow.month, tomorrow.day)
+
+
+def count_offers(user):
+    return Offers.objects.filter(post__author_id=user.id).latest('created_at').count()
+
+
+def is_online(user):
+    key = f'UserOnline-{user.id}'
+    if not cache.get(key):
+        return False
+    # key f'UserOnline-{user.id}' is not consistent with key 'online'
+    return cache.get('online')
+
+
+def get_parsed_address_components(place_result, keys={}):
+    components = {}
+    for a_component in place_result['address_components']:
+        for type in a_component['types']:
+            components[type] = a_component['long_name']
+    return components.keys() & {value: key for key, value in keys.items()} if len(keys) else components
+
+
+def get_location_google(place_id, lang):
+
+    params = {'place_id': place_id, 'language': lang,
+              'key': GOOGLE_PLACES_API_KEY}
+    response = requests.get(GOOGLE_API_PLACE_DETAILS_URL,
+                            params=params, timeout=10.0)
+
+    if response.status_code == 200:
+        return (response.json(), response.status_code)
+    else:
+        return (f'Unexpected response from {GOOGLE_API_PLACE_DETAILS_URL}', response.status_code)
+
+
+def get_address_components(place_id, lang='uk'):
+
+    place_details, status_code = get_location_google(place_id, lang)
+    if status_code == 200:
+        get_parsed_address_components(place_details['result'])
+
+        return get_parsed_address_components(place_details['result'])
+    else:
+        return None

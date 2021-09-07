@@ -132,3 +132,7 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+GOOGLE_PLACES_API_KEY = config('GOOGLE_PLACES_API_KEY')
+GOOGLE_API_PLACE_DETAILS_URL = config('GOOGLE_API_PLACE_DETAILS_URL')

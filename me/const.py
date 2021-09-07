@@ -37,3 +37,16 @@ default_privacy_settings = {
 }
 
 kiev_tz = pytz.timezone('Europe/Kiev')
+
+
+levels = {
+    1: 5000,
+    2: 20000,
+    3: 60000
+}
+
+ratingCoefficients = {
+    1: 1.414213,
+    2: 0.816496,
+    3: 0.5
+}

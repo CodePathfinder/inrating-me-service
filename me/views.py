@@ -13,7 +13,7 @@ from .resources import get_response_data
 
 
 def index(request):
-    return HttpResponse('<h2>WELCOME TO API SERVICES!</h2>')
+    return HttpResponse('<h2>TEST CONNECTION</h2>')
 
 
 @api_view(['GET', 'POST'])
@@ -53,10 +53,9 @@ def me_info(request):
                 id = int(data['sub'])
 
                 # check if user's id is in DB and is unique, get 'me'- related data from DB (users)
-                # todo play with select_related() and prefetch_related() methods to improve productivity
                 try:
-                    me = Users.objects.get(id=id)
-
+                    me = Users.objects.select_related('avatar_image', 'background_image', 'commercialbuttons', 'commercialinfo',
+                                                      'tempstatuses', 'useradditionalinfo', 'userprivacysettings', 'usersettings', 'usertutorial').get(id=id)
                 except Users.DoesNotExist:
                     return Response(status=status.HTTP_404_NOT_FOUND)
 
@@ -64,12 +63,10 @@ def me_info(request):
                 response_data = get_response_data(me)
 
                 return Response(response_data)
-                # return HttpResponse(
-                #     json.dumps(response_data, ensure_ascii=False), content_type="application/json")
 
             else:
                 return Response(
-                    {'Error': "Invalid authorisation token."}, status=status.HTTP_400_BAD_REQUEST)
+                    {'Error': "Invalid Authorisation token."}, status=status.HTTP_400_BAD_REQUEST)
 
         else:
             return Response({'Error': "No Authorisation token."}, status=status.HTTP_400_BAD_REQUEST)
@@ -79,7 +76,7 @@ def me_info(request):
 
 
 def timestamp_token_verification(data):
-    """ Token verification: is expired ? """
+    # check if authorization token is not expired
 
     try:
         iat = data.get('iat')

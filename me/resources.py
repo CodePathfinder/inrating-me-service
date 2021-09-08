@@ -24,11 +24,10 @@ from . import const
 #     return print_action
 
 
-def get_response_data(user):
+def get_response_data(user, cuid):
 
     user_settings = user.usersettings
     additional_info = user.useradditionalinfo
-    tutorial = user.usertutorial
     avatar_image = get_avatar_image_resource(user)
     is_commercial = user.parent_id != None
     active_ads_count = user.ads_set.filter(active=True).count()
@@ -78,30 +77,13 @@ def get_response_data(user):
         "posts_count": user.posts_set.filter(type=const.postTypes['user-post'], deleted_at__isnull=True).count(),
         "subscriptions_count": follow(user),
         "subscribers_count": followers(user),
-        "bookmarks_count": bookmarked_posts(user),
-        "mentions_count": mentioned_images(user),
-        "settings": {
-            "lang": user_settings.lang,
-            "chat_langs": {
-                "main_lang": user_settings.chat_main_lang,
-                "sub_langs": user_settings.chat_sub_langs,
-            },
-            "chat_autotranslate": user_settings.chat_autotranslate,
-            "sounds": user_settings.sounds if user_settings.sounds else True
-        },
-        "tutorial": {
-            "user_id": tutorial.user_id,
-            "web_mobile": tutorial.web_mobile,
-            "web_desktop": tutorial.web_desktop,
-            "android": tutorial.android,
-            "ios": tutorial.ios
-        },
-        "subscribe_requests_count": subscribe_requests(user),
-        "gift_bg_available": gift_bg_available(user),
         "location": get_location(additional_info),
         "temp_status": get_temp_status_resourse(user),
         "privacy_settings": get_user_privacy_settings_resource(user)
     }
+    # add me specific info to main_resource (dict)
+    if user.id == cuid:
+        main_resource.update(add_me_specific_info(user, user_settings))
     # merge commercial info (dict) with main_resource (dict)
     if is_commercial:
         main_resource.update(get_commercial_info(user))
@@ -180,7 +162,7 @@ def get_place_resource(user_settings):
             "country": place.country,
             "administrative_area_level_1": place.administrative_area_level_1,
             "administrative_area_level_2": place.administrative_area_level_2,
-            "address_components": get_address_components(place.google_place_id, user_settings.lang)
+            # "address_components": get_address_components(place.google_place_id, user_settings.lang)
         }
         return place_resource
     except Places.DoesNotExist:
@@ -616,3 +598,30 @@ def get_address_components(place_id, lang='uk'):
         return get_parsed_address_components(place_details['result'])
     else:
         return None
+
+
+def add_me_specific_info(user, user_settings):
+
+    return {
+
+        "bookmarks_count": bookmarked_posts(user),
+        "mentions_count": mentioned_images(user),
+        "settings": {
+            "lang": user_settings.lang,
+            "chat_langs": {
+                "main_lang": user_settings.chat_main_lang,
+                "sub_langs": user_settings.chat_sub_langs,
+            },
+            "chat_autotranslate": user_settings.chat_autotranslate,
+            "sounds": user_settings.sounds if user_settings.sounds else True
+        },
+        "tutorial": {
+            "user_id": user.usertutorial.user_id,
+            "web_mobile": user.usertutorial.web_mobile,
+            "web_desktop": user.usertutorial.web_desktop,
+            "android": user.usertutorial.android,
+            "ios": user.usertutorial.ios
+        },
+        "subscribe_requests_count": subscribe_requests(user),
+        "gift_bg_available": gift_bg_available(user),
+    }

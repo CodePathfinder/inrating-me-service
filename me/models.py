@@ -459,6 +459,17 @@ class UserAdditionalInfo(models.Model):
         db_table = 'user_additional_info'
 
 
+class UserBlacklist(models.Model):
+    user = models.ForeignKey(Users, on_delete=models.CASCADE)
+    blocked_user_id = models.IntegerField()
+    created_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'user_blacklist'
+        unique_together = (('user_id', 'blocked_user_id'),)
+
+
 class UserExtrarate(models.Model):
     exchange_id = models.IntegerField(default=0)
     user = models.ForeignKey(Users, on_delete=models.CASCADE)

@@ -50,3 +50,13 @@ ratingCoefficients = {
     2: 0.816496,
     3: 0.5
 }
+
+
+unavailable_user_status_codes = {
+    'banned_avatar': 0,
+    'blocked': 1,
+    'banned': 2,
+    'disabled_by_user': 3,
+    'blacklist': 4,
+    'not_found': 5
+}

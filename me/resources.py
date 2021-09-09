@@ -6,7 +6,7 @@ from math import sqrt
 import requests
 from microservices.settings import GOOGLE_PLACES_API_KEY, GOOGLE_API_PLACE_DETAILS_URL
 
-from .models import Images, Places, UserPrivacySettings, CommercialButtons, ChinChins, ReportedPosts, GiftUser, Gifts, TempStatuses, FieldOfActivityDictionary, SocialStatusDictionary, Offers
+from .models import Users, Images, Places, UserPrivacySettings, CommercialButtons, ChinChins, ReportedPosts, GiftUser, Gifts, TempStatuses, FieldOfActivityDictionary, SocialStatusDictionary, Offers
 from .serializers import ImagesSerializer
 from . import const
 
@@ -24,8 +24,10 @@ from . import const
 #     return print_action
 
 
-def get_response_data(user, cuid):
+def get_response_data(uid, cuid):
 
+    user = Users.objects.select_related('avatar_image', 'background_image', 'commercialbuttons', 'commercialinfo',
+                                        'tempstatuses', 'useradditionalinfo', 'userprivacysettings', 'usersettings', 'usertutorial').get(id=uid)
     user_settings = user.usersettings
     additional_info = user.useradditionalinfo
     avatar_image = get_avatar_image_resource(user)

@@ -51,8 +51,7 @@ def get_user_data(request):
 
             # extract 'current user id' (cuid) from payload data
             if 'sub' in data:
-                # cuid = int(data['sub'])
-                cuid = 5442
+                cuid = int(data['sub'])
 
                 # get request.data containing either request.body (json) or request.POST (form) data
                 try:

@@ -6,7 +6,7 @@ from math import sqrt
 import requests
 from microservices.settings import GOOGLE_PLACES_API_KEY, GOOGLE_API_PLACE_DETAILS_URL
 
-from .models import Users, Images, Places, UserPrivacySettings, CommercialButtons, ChinChins, ReportedPosts, GiftUser, Gifts, TempStatuses, FieldOfActivityDictionary, SocialStatusDictionary, Offers
+from .models import Users, UserSettings, Images, Places, UserPrivacySettings, CommercialButtons, ChinChins, ReportedPosts, GiftUser, Gifts, TempStatuses, FieldOfActivityDictionary, SocialStatusDictionary, Offers, PostViews
 from .serializers import ImagesSerializer
 from . import const
 
@@ -32,6 +32,7 @@ def get_response_data(uid, cuid):
     additional_info = user.useradditionalinfo
     avatar_image = get_avatar_image_resource(user)
     is_commercial = user.parent_id != None
+    is_personal_profile = cuid == uid
     active_ads_count = user.ads_set.filter(active=True).count()
 
     # uncomment to see all cached keys
@@ -48,17 +49,15 @@ def get_response_data(uid, cuid):
         "name": user.name if user.name else user.nickname,
         "lastname": user.lastname if user.lastname else "",
         "status": user.status,
-        "is_subscribed": is_subscribed(user),
+        "is_subscribed": is_subscribed(user, cuid),
         "is_online": is_online(user),
         "rating": get_rating(user),
         "comments": user_settings.comments if user_settings.comments else "all",
-        "geo_id": get_place_resource(user_settings) if user_settings and user_settings.geo_id else None,
+        "geo_id": get_place_resource(user_settings, cuid) if user_settings and user_settings.geo_id else None,
         "contest_entry_instance": get_contest_resource(user),
         "chat_main_lang": user_settings.chat_main_lang if user_settings.chat_main_lang else 'ru',
-        "is_voted": is_voted(user),
+        "is_voted": is_voted(user, cuid),
         "is_commercial": is_commercial,
-        "email": user.email,
-        "phone": user.phone,
         "active_ads_count": active_ads_count if active_ads_count else 0,
         "gender": user.gender,
         "background_image": get_background_image_resource(user),
@@ -70,9 +69,9 @@ def get_response_data(uid, cuid):
         "social_links": user_settings.social_links if user_settings.social_links else [],
         "contest_entry": active_contest_entries(user),
         "is_verified": additional_info.phone_verified if additional_info.phone_verified else False,
-        "is_chined": is_chin_chined(user),
-        "is_active_story": True if is_active_story(user) else False,
-        "is_story_seen": is_story_seen(user) == is_active_story(user),
+        "is_chined": is_chin_chined(user, cuid),
+        "is_active_story": True if is_active_story(user, cuid) else False,
+        "is_story_seen": is_story_seen(user, cuid) == is_active_story(user, cuid),
         "social_statuses": get_social_statuses(user),
         "activity_statuses": get_activity_statuses(user),
         "offers_count": count_offers(user) if is_commercial else 0,
@@ -84,8 +83,8 @@ def get_response_data(uid, cuid):
         "privacy_settings": get_user_privacy_settings_resource(user)
     }
     # add me specific info to main_resource (dict)
-    if user.id == cuid:
-        main_resource.update(add_me_specific_info(user, user_settings))
+    if is_personal_profile:
+        main_resource.update(add_personal_info(user, user_settings))
     # merge commercial info (dict) with main_resource (dict)
     if is_commercial:
         main_resource.update(get_commercial_info(user))
@@ -137,27 +136,27 @@ def get_user_privacy_settings_resource(user):
         return const.default_privacy_settings
 
 
-def get_location_place_resource(lang, place):
+def get_location_place_resource(cuid, place):
     # get location colomn (uk, ru, or en) depending on user's main language
-
-    if lang == const.locationLanguages['uk']:
+    current_user_settings = UserSettings.objects.get(user_id=cuid)
+    if current_user_settings.lang == const.locationLanguages['uk']:
         location = place.uk
-    elif lang == const.locationLanguages['ru']:
+    elif current_user_settings.lang == const.locationLanguages['ru']:
         location = place.ru
-    elif lang == const.locationLanguages['en']:
+    elif current_user_settings.lang == const.locationLanguages['en']:
         location = place.en
     else:
         location = place.en
     return location
 
 
-def get_place_resource(user_settings):
+def get_place_resource(user_settings, cuid):
     try:
         place = Places.objects.get(id=user_settings.geo_id)
         place_resource = {
             "id": place.id,
             "google_place_id": place.google_place_id,
-            "location": get_location_place_resource(user_settings.lang, place),
+            "location": get_location_place_resource(cuid, place),
             "lat": place.lat,
             "lng": place.lng,
             "locality": place.locality,
@@ -188,13 +187,13 @@ def get_contest_resource(user):
         return contest_user
 
 
-def is_voted(user):
+def is_voted(user, cuid):
 
-    key = f'user-.{user.id}.-voted-by-.{user.id}'
+    key = f'user-.{user.id}.-voted-by-.{cuid}'
     if cache.has_key(key):
         is_voted = cache.get(key)
     else:
-        votes = user.userextrarate_set.filter(sender_id=user.id, type=1).filter(
+        votes = user.userextrarate_set.filter(sender_id=cuid, type=1).filter(
             created_at__gte=datetime.now(const.kiev_tz).date()).order_by('-created_at')
         is_voted = votes.exists()
         cache.set(key, is_voted)
@@ -223,6 +222,8 @@ def get_commercial_button_resource(user):
 def get_commercial_info(user):
 
     return {
+        "email": user.email,
+        "phone": user.phone,
         "site": user.commercialinfo.site if user.commercialinfo.site else None,
         "desc": user.commercialinfo.desc if user.commercialinfo.desc else None,
         "categories": get_categories(user) if get_categories(user) else None,
@@ -304,14 +305,14 @@ def active_contest_entries(user):
     return contest_entry.contest.slug if contest_entry else contest_entry
 
 
-def is_chin_chined(user):
+def is_chin_chined(user, cuid):
 
-    key = f'user-.{user.id}.-chined-by-.{user.id}'
+    key = f'user-.{user.id}.-chined-by-.{cuid}'
     if cache.has_key(key):
         is_chined = cache.get(key)
     else:
         chin = ChinChins.objects.filter(
-            sender_id=user.id, receiver_id=user.id, created_at__gte=datetime.now()-timedelta(hours=1)).first()
+            sender_id=cuid, receiver_id=user.id, created_at__gte=datetime.now()-timedelta(hours=1)).first()
         if chin:
             is_chined = True
             timeout = (chin.created_at + timedelta(hours=1)).total_seconds()
@@ -322,7 +323,7 @@ def is_chin_chined(user):
     return is_chined
 
 
-def is_active_story(user, only_active=True, hide_reported=True):
+def is_active_story(user, cuid, only_active=True, hide_reported=True):
 
     model = user.storyposts_set.filter(created_at__lte=datetime.now())
 
@@ -334,7 +335,7 @@ def is_active_story(user, only_active=True, hide_reported=True):
 
     if hide_reported:
         reported_posts = ReportedPosts.objects.filter(
-            user_id=user.id).values('post_id')
+            user_id=cuid).values('post_id')
         model = model.filter(~Q(post_id__in=[
             rpost['post_id'] for rpost in reported_posts]) & Q(post__active=True))
     else:
@@ -343,12 +344,15 @@ def is_active_story(user, only_active=True, hide_reported=True):
     return model.count()
 
 
-def is_story_seen(user):
+def is_story_seen(user, cuid):
 
     query = user.storyposts_set.filter(created_at__range=(datetime.now(), datetime.now(
     )-timedelta(days=1))).filter(post__deleted_at__isnull=True).values('post_id')
     story_post_seen = user.postviews_set.filter(
         post_id__in=[q['post_id'] for q in query]).count()
+
+    story_post_seen = PostViews.objects.filter(
+        post_id__in=[q['post_id'] for q in query], user_id=cuid).count()
 
     return story_post_seen
 
@@ -361,9 +365,9 @@ def follow(user):
     return i_follow.count()
 
 
-def is_subscribed(user):
+def is_subscribed(user, cuid):
 
-    return user.first.filter(first_id=user.id, second_id=user.id, accepted_at__isnull=False).exists()
+    return user.first.filter(first_id=cuid, second_id=user.id, accepted_at__isnull=False).exists()
 
 
 def followers(user):
@@ -602,10 +606,11 @@ def get_address_components(place_id, lang='uk'):
         return None
 
 
-def add_me_specific_info(user, user_settings):
+def add_personal_info(user, user_settings):
 
     return {
-
+        "email": user.email,
+        "phone": user.phone,
         "bookmarks_count": bookmarked_posts(user),
         "mentions_count": mentioned_images(user),
         "settings": {

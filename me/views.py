@@ -10,15 +10,16 @@ import time
 
 from .models import Users
 from .resources import get_response_data
+from . import const
 
 
 def index(request):
-    return HttpResponse('<h2>WELCOME TO API SERVICES!</h2>')
+    return HttpResponse('<h2>TEST CONNECTION</h2>')
 
 
 @api_view(['GET', 'POST'])
 @cache_page(60 * 5)
-def me_info(request):
+def get_user_data(request):
 
     if request.method == 'POST':
 
@@ -48,28 +49,65 @@ def me_info(request):
                 return Response(
                     {'Error': "Authorisation token is invalid or expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # extract 'sub(ject)'/'user_id' from payload data
+            # extract 'current user id' (cuid) from payload data
             if 'sub' in data:
-                id = int(data['sub'])
+                cuid = int(data['sub'])
 
-                # check if user's id is in DB and is unique, get 'me'- related data from DB (users)
+                # get request.data containing either request.body (json) or request.POST (form) data
                 try:
-                    me = Users.objects.select_related(
-                        'avatar_image', 'background_image', 'commercialbuttons', 'commercialinfo', 'tempstatuses', 'useradditionalinfo', 'userprivacysettings', 'usersettings', 'usertutorial').get(id=id)
+                    body = request.data
+                # if request.data containing either request.body (json) or request.POST (form) data
+                except Exception:
+                    uid, unavalable_reason = verify_user_status(cuid, cuid)
+                    if unavalable_reason:
+                        return Response({'status': const.unavailable_user_status_codes[unavalable_reason]}, status=status.HTTP_403_FORBIDDEN)
+                    else:
+                        return Response(get_response_data(uid, cuid))
+                else:
+                    # if 'nickname' in request.data, validate 'nickname', try and extract user data by 'nickname'
+                    if 'nickname' in body and body["nickname"]:
+                        if not isinstance(body["nickname"], str):
+                            return Response(
+                                {'ValidationError': "nickname should be a string."}, status=status.HTTP_400_BAD_REQUEST)
+                        if len(body["nickname"]) > 255:
+                            return Response(
+                                {'ValidationError': "max lenght of nickname should be 255."}, status=status.HTTP_400_BAD_REQUEST)
 
-                except Users.DoesNotExist:
-                    return Response(status=status.HTTP_404_NOT_FOUND)
+                        user = Users.objects.filter(
+                            nickname=body["nickname"]).first()
+                        if user:
+                            uid, unavalable_reason = verify_user_status(
+                                user.id, cuid)
+                            if unavalable_reason:
+                                return Response({'status': const.unavailable_user_status_codes[unavalable_reason]}, status=status.HTTP_403_FORBIDDEN)
+                            else:
+                                return Response(get_response_data(uid, cuid))
+                        elif 'id' not in body or not body["id"]:
+                            return Response({'status': const.unavailable_user_status_codes['not_found']}, status=status.HTTP_403_FORBIDDEN)
 
-                # JSON representation of DB data
-                response_data = get_response_data(me)
+                    # if 'id' in request.data, try and extract user data by 'id'
+                    if 'id' in body and body["id"]:
+                        try:
+                            id = int(body["id"])
+                        except ValueError:
+                            return Response(
+                                {'ValidationError': "id should be an integer."}, status=status.HTTP_400_BAD_REQUEST)
+                        uid, unavalable_reason = verify_user_status(id, cuid)
+                        if unavalable_reason:
+                            return Response({'status': const.unavailable_user_status_codes[unavalable_reason]}, status=status.HTTP_403_FORBIDDEN)
+                        else:
+                            return Response(get_response_data(uid, cuid))
 
-                return Response(response_data)
-                # return HttpResponse(
-                #     json.dumps(response_data, ensure_ascii=False), content_type="application/json")
+                    # extract user data by 'current user id' if neither nickname nor id is provided in request.data
+                    uid, unavalable_reason = verify_user_status(cuid, cuid)
+                    if unavalable_reason:
+                        return Response({'status': const.unavailable_user_status_codes[unavalable_reason]}, status=status.HTTP_403_FORBIDDEN)
+                    else:
+                        return Response(get_response_data(uid, cuid))
 
             else:
                 return Response(
-                    {'Error': "Invalid authorisation token."}, status=status.HTTP_400_BAD_REQUEST)
+                    {'Error': "Invalid Authorisation token."}, status=status.HTTP_400_BAD_REQUEST)
 
         else:
             return Response({'Error': "No Authorisation token."}, status=status.HTTP_400_BAD_REQUEST)
@@ -79,7 +117,7 @@ def me_info(request):
 
 
 def timestamp_token_verification(data):
-    """ Token verification: is expired ? """
+    # check if authorization token is not expired
 
     try:
         iat = data.get('iat')
@@ -92,3 +130,23 @@ def timestamp_token_verification(data):
             return False
         else:
             return True
+
+
+def verify_user_status(id, cuid):
+    unavailable_reasons = [item[0]
+                           for item in const.unavailable_user_status_codes.items()]
+    unaval_reason = ''
+    user = Users.objects.filter(id=id).first()
+    if not user:
+        unaval_reason = 'not_found'
+        return ((None, unaval_reason))
+    elif id == cuid:
+        return ((cuid, unaval_reason))
+    elif user.status.replace(' ', '_') in unavailable_reasons:
+        unaval_reason = user.status.replace(' ', '_')
+        return ((id, unaval_reason))
+    elif user.userblacklist_set.filter(blocked_user_id=cuid).exists():
+        unaval_reason = 'blacklist'
+        return ((id, unaval_reason))
+    else:
+        return ((id, unaval_reason))

@@ -1,0 +1,158 @@
+openapi: 3.0.2
+info:
+  title: "Inrating API Documentation. Users"
+  version: "1.0.0"
+paths:
+  /v1/get:
+    get:
+      operationId: listUserDetails
+      summary: Get info about user
+      description: >
+        **Return user data (without parameters - current user)**
+      parameters:
+        - in: query
+          name: nickname
+          schema:
+            type: string
+          description: ""
+          example: name13298
+        - in: query
+          name: id
+          schema:
+            type: integer
+          description: ""
+          example: 16059
+          allowEmptyValue: true
+      responses:
+        "200":
+          description: "Return user data"
+          content:
+            application/json:
+              schema:
+                $ref: "./user.yml#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/UnavailableUserError"
+      tags:
+        - v1
+    post:
+      operationId: createUserDetails
+      summary: Get info about user
+      description: >
+        **Return user data (without parameters - current user)**
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Params"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/Params"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/Params"
+      responses:
+        "200":
+          description: "Return user data"
+          content:
+            application/json:
+              schema:
+                $ref: "./user.yml#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/UnavailableUserError"
+      tags:
+        - v1
+  /v1/me:
+    get:
+      operationId: listMeDetails
+      summary: Get info about current user
+      description: >
+        **Return current user data**
+      responses:
+        "200":
+          description: "Return current user data"
+          content:
+            application/json:
+              schema:
+                $ref: "./user.yml#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/UnavailableUserError"
+      tags:
+        - v1
+    post:
+      operationId: createMeDetails
+      summary: Get info about current user
+      description: >
+        **Return current user data**
+      responses:
+        "200":
+          description: "Return current user data"
+          content:
+            application/json:
+              schema:
+                $ref: "./user.yml#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/UnavailableUserError"
+      tags:
+        - v1
+components:
+  securitySchemes:
+    bearerAuth: # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+      bearerFormat: JWT # optional, arbitrary value for documentation purposes
+  responses:
+    UnauthorizedError:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              Error:
+                type: string
+                example: "Invalid token."
+      description: Access token is missing or invalid.
+    BadRequestError:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ValidationError:
+                type: string
+                example: "id should be an integer."
+      description: Bad request.
+    UnavailableUserError:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: integer
+                example: 5
+      description: Unavailable user status.
+  schemas:
+    Params:
+      type: object
+      properties:
+        nickname:
+          type: string
+          maxLength: 255
+          example: "name13298"
+        id:
+          type: integer
+          example: 16059
+security:
+  - bearerAuth: []

@@ -1,0 +1,295 @@
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 16059
+        nickname:
+          type: string
+          example: "name13298"
+        active_gift:
+          type: object
+          example: null
+          nullable: true
+        avatar_image:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 22109
+            url:
+              type: string
+              example: "http://cloud-storage.innet.club/img000/N81vsdI5LnEP2k0p19aY.jpg"
+            url_large:
+              type: string
+              example: "http://cloud-storage.innet.club/img000/N81vsdI5LnEP2k0p19aY_large.jpg"
+            url_medium:
+              type: string
+              example: "http://cloud-storage.innet.club/img000/N81vsdI5LnEP2k0p19aY_medium.jpg"
+            url_small:
+              type: string
+              example: "http://cloud-storage.innet.club/img000/N81vsdI5LnEP2k0p19aY_small.jpg"
+            url_origin:
+              type: string
+              example: "http://cloud-storage.innet.club/img000/N81vsdI5LnEP2k0p19aY.jpg"
+            url_large_origin:
+              type: string
+              example: "http://cloud-storage.innet.club/img000/1110x1110/N81vsdI5LnEP2k0p19aY_large_origin.jpg"
+            url_medium_origin:
+              type: string
+              example: "http://cloud-storage.innet.club/img000/1110x1110/N81vsdI5LnEP2k0p19aY_medium_origin.jpg"
+            url_small_origin:
+              type: string
+              example: "http://cloud-storage.innet.club/img000/1110x1110/N81vsdI5LnEP2k0p19aY_small_origin.jpg"
+            mentioned_users_count:
+              type: integer
+              example: 0
+        is_commercial:
+          type: boolean
+          example: false
+        off_page:
+          type: boolean
+          example: false
+        name:
+          type: string
+          example: "Test"
+        lastname:
+          type: string
+          example: "User"
+        status:
+          type: string
+          example: "active"
+        is_subscribed:
+          type: boolean
+          example: false
+        is_online:
+          type: boolean
+          example: false
+        rating:
+          type: object
+          properties:
+            level:
+              type: integer
+              example: 1,
+            value:
+              type: integer
+              example: 2,
+            caption:
+              type: integer
+              example: 2,
+            proportion:
+              type: number
+              example: 0.02
+        comments:
+          type: string
+          example: "all"
+        contest_entry_instance:
+          type: object
+          example: null
+          nullable: true
+        geo_id:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 51
+            google_place_id:
+              type: string
+              example: "ChIJBUVa4U7P1EAR_kYBF9IxSXY"
+            location:
+              type: string
+              example: "Киев, Украина, 02000"
+            lat:
+              type: number
+              example: 50.4501
+            lng:
+              type: number
+              example: 30.5234
+            locality:
+              type: string
+              example: "Kyiv"
+            country:
+              type: string
+              example: "Ukraine"
+            administrative_area_level_1:
+              type: string
+              example: null
+              nullable: true
+            administrative_area_level_2:
+              type: string
+              example: "Kyiv City"
+        chat_main_lang:
+          type: string
+          example: "ru"
+        is_voted:
+          type: boolean
+          example: false
+        active_ads_count:
+          type: integer
+          example: 0
+        gender:
+          type: string
+          example: "female"
+        background_image:
+          type: object
+          example: null
+          nullable: true
+        birth_date:
+          type: string
+          example: "2003-12-31"
+        birth_date_timestamp:
+          type: string
+          example: 1072828800
+        typed_rating:
+          type: object
+          properties:
+            day:
+              type: integer
+              example: 0
+            day_caption:
+              type: integer
+              example: 0
+            week:
+              type: integer
+              example: 0
+            week_caption:
+              type: integer
+              example: 0
+            month:
+              type: integer
+              example: 0
+            month_caption:
+              type: integer
+              example: 0
+        personal_status:
+          type: string
+          example: null
+          nullable: true
+        family_status:
+          type: array
+          example: null
+          nullable: true
+        social_links:
+          type: array
+          example: []
+        contest_entry:
+          type: object
+          example: null
+          nullable: true
+        is_verified:
+          type: boolean
+          example: false
+        is_chined:
+          type: boolean
+          example: false
+        is_active_story:
+          type: boolean
+          example: false
+        is_story_seen:
+          type: boolean
+          example: true
+        social_statuses:
+          type: array
+          example: []
+        activity_statuses:
+          type: array
+          example: []
+        offers_count:
+          type: integer
+          example: 0
+        posts_count:
+          type: integer
+          example: 1
+        subscriptions_count:
+          type: integer
+          example: 1
+        subscribers_count:
+          type: integer
+          example: 1
+        location:
+          type: object
+          example: null
+        temp_status:
+          type: object
+          example: null
+          nullable: true
+        privacy_settings:
+          type: object
+          properties:
+            profile:
+              type: string
+              example: "all"
+            subscribers:
+              type: string
+              example: "all"
+            subscriptions:
+              type: string
+              example: "all"
+            subscribe:
+              type: string
+              example: "all"
+            chat:
+              type: string
+              example: "all"
+        email:
+          type: string
+          example: null
+          nullable: true
+        phone:
+          type: string
+          example: "+380385078545"
+        bookmarks_count:
+          type: integer
+          example: 0
+        mentions_count:
+          type: integer
+          example: 0
+        settings:
+          type: object
+          properties:
+            lang:
+              type: string
+              example: "ru"
+            chat_langs:
+              type: object
+              properties:
+                main_lang:
+                  type: string
+                  example: "ru"
+                sub_langs:
+                  type: string
+                  example: null
+                  nullable: true
+            chat_autotranslate:
+              type: boolean
+              example: false
+            sounds:
+              type: boolean
+              example: true
+        tutorial:
+          type: object
+          properties:
+            user_id:
+              type: integer
+              example: 16059
+            web_mobile:
+              type: boolean
+              example: false
+            web_desktop:
+              type: boolean
+              example: false
+            android:
+              type: boolean
+              example: false
+            ios:
+              type: boolean
+              example: false
+        subscribe_requests_count:
+          type: integer
+          example: 0
+        gift_bg_available:
+          type: boolean
+          example: null
+          nullable: true

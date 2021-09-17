@@ -108,10 +108,10 @@ paths:
         - v1
 components:
   securitySchemes:
-    bearerAuth: # arbitrary name for the security scheme
+    bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT # optional, arbitrary value for documentation purposes
+      bearerFormat: JWT
   responses:
     UnauthorizedError:
       content:
@@ -142,7 +142,14 @@ components:
               status:
                 type: integer
                 example: 5
-      description: Unavailable user status.
+      description: >
+        Unavailable user status: 
+          banned_avatar - 0, 
+          blocked - 1, 
+          banned - 2, 
+          disabled by user - 3, 
+          blacklist - 4, 
+          not_found - 5
   schemas:
     Params:
       type: object

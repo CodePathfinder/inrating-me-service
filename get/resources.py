@@ -164,7 +164,7 @@ def get_place_resource(user_settings, cuid):
             "country": place.country,
             "administrative_area_level_1": place.administrative_area_level_1,
             "administrative_area_level_2": place.administrative_area_level_2,
-            # "address_components": get_address_components(place.google_place_id, user_settings.lang)
+            "address_components": get_address_components(place.google_place_id, user_settings.lang)
         }
         return place_resource
     except Places.DoesNotExist:
